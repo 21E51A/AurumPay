@@ -1,7 +1,7 @@
 module.exports = (err, req, res, next) => {
   console.error(err);
-  res.status(400).json({
+  res.status(500).json({
     success: false,
-    message: err.message || "Something went wrong",
+    message: err.message || "Server error"
   });
 };
