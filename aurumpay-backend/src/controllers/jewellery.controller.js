@@ -1,11 +1,42 @@
 const jewelleryService = require("../services/jewellery.service");
 
-/**
- * ADMIN: Add jewellery
- */
+/* ================= ADMIN ================= */
+
 const addJewellery = async (req, res, next) => {
   try {
-    await jewelleryService.addJewellery(req.body);
+    const {
+      name,
+      category,
+      weight_grams,
+      making_charge,
+      description,
+    } = req.body;
+
+    if (!name || !category || !weight_grams) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, category and weight are required",
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Image or video is required",
+      });
+    }
+
+    const imageUrl = `/uploads/${req.file.filename}`;
+
+    await jewelleryService.addJewellery({
+      name,
+      category,
+      weight_grams,
+      making_charge,
+      description,
+      image_url: imageUrl,
+    });
+
     res.status(201).json({
       success: true,
       message: "Jewellery added successfully",
@@ -15,9 +46,6 @@ const addJewellery = async (req, res, next) => {
   }
 };
 
-/**
- * ADMIN: View all jewellery
- */
 const getAllJewellery = async (req, res, next) => {
   try {
     const jewellery = await jewelleryService.getAllJewellery();
@@ -27,15 +55,15 @@ const getAllJewellery = async (req, res, next) => {
   }
 };
 
-/**
- * ADMIN: Enable / Disable jewellery
- */
 const updateJewelleryStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { is_available } = req.body;
 
-    await jewelleryService.updateJewelleryStatus(id, is_available);
+    await jewelleryService.updateJewelleryStatus(
+      id,
+      is_available
+    );
 
     res.json({
       success: true,
@@ -46,32 +74,71 @@ const updateJewelleryStatus = async (req, res, next) => {
   }
 };
 
-/**
- * USER: View available jewellery
- */
+const updateJewellery = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    await jewelleryService.updateJewellery(
+      id,
+      req.body
+    );
+
+    res.json({
+      success: true,
+      message: "Jewellery updated successfully",
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const deleteJewellery = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    await jewelleryService.deleteJewellery(id);
+
+    res.json({
+      success: true,
+      message: "Jewellery deleted successfully",
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* ================= USER ================= */
+
 const getAvailableJewellery = async (req, res, next) => {
   try {
-    const jewellery = await jewelleryService.getAvailableJewellery();
+    const jewellery =
+      await jewelleryService.getAvailableJewellery();
+
     res.json({ success: true, jewellery });
   } catch (err) {
     next(err);
   }
 };
 
-/**
- * USER: Calculate jewellery price
- */
 const calculatePrice = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const priceDetails =
+    const price =
       await jewelleryService.calculateJewelleryPrice(id);
 
-    res.json({
-      success: true,
-      price: priceDetails,
-    });
+    res.json({ success: true, price });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getFinalMetalPrices = async (req, res, next) => {
+  try {
+    const prices =
+      await jewelleryService.getFinalMetalPrices();
+
+    res.json({ success: true, prices });
   } catch (err) {
     next(err);
   }
@@ -81,6 +148,9 @@ module.exports = {
   addJewellery,
   getAllJewellery,
   updateJewelleryStatus,
+  updateJewellery,
+  deleteJewellery,
   getAvailableJewellery,
   calculatePrice,
+  getFinalMetalPrices,
 };

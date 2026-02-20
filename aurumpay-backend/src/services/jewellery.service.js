@@ -1,96 +1,159 @@
 const pool = require("../config/db");
 
-/**
- * ADMIN: Add jewellery
- */
+/* ================= ADMIN ================= */
+
 const addJewellery = async (data) => {
   const {
     name,
     category,
-    price_per_gram,
     weight_grams,
     making_charge,
     description,
-    image_url,
+    image_url = null,
   } = data;
 
   await pool.query(
-    `INSERT INTO jewellery 
-    (name, category, price_per_gram, weight_grams, making_charge, description, image_url)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO jewellery
+     (name, category, weight_grams, making_charge, description, image_url, is_available)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
       name,
       category,
-      price_per_gram,
-      weight_grams,
-      making_charge,
-      description,
+      Number(weight_grams),
+      Number(making_charge) || 0,
+      description || "",
       image_url,
+      true,
     ]
   );
 };
 
-/**
- * ADMIN: View all jewellery
- */
 const getAllJewellery = async () => {
-  const [rows] = await pool.query("SELECT * FROM jewellery");
+  const [rows] = await pool.query(
+    "SELECT * FROM jewellery ORDER BY id DESC"
+  );
   return rows;
 };
 
-/**
- * ADMIN: Enable / Disable jewellery
- */
 const updateJewelleryStatus = async (id, is_available) => {
   await pool.query(
-    "UPDATE jewellery SET is_available = ? WHERE id = ?",
-    [is_available, id]
+    "UPDATE jewellery SET is_available=? WHERE id=?",
+    [Boolean(is_available), id]
   );
 };
 
-/**
- * USER: View only available jewellery
- */
+const updateJewellery = async (id, data) => {
+  const {
+    name,
+    category,
+    weight_grams,
+    making_charge,
+    description,
+  } = data;
+
+  await pool.query(
+    `UPDATE jewellery 
+     SET name=?, category=?, weight_grams=?, making_charge=?, description=?
+     WHERE id=?`,
+    [
+      name,
+      category,
+      Number(weight_grams),
+      Number(making_charge) || 0,
+      description || "",
+      id,
+    ]
+  );
+};
+
+const deleteJewellery = async (id) => {
+  await pool.query(
+    "DELETE FROM jewellery WHERE id=?",
+    [id]
+  );
+};
+
+/* ================= USER ================= */
+
 const getAvailableJewellery = async () => {
   const [rows] = await pool.query(
-    "SELECT * FROM jewellery WHERE is_available = true"
+    "SELECT * FROM jewellery WHERE is_available=true"
   );
   return rows;
 };
 
-/**
- * USER: Calculate jewellery final price
- */
-const calculateJewelleryPrice = async (jewelleryId) => {
+/* 🔥 SAFE PRICE CALCULATION (NO 500 ERROR) */
+const calculateJewelleryPrice = async (id) => {
   const [rows] = await pool.query(
-    `SELECT price_per_gram, weight_grams, making_charge
-     FROM jewellery
-     WHERE id = ? AND is_available = true`,
-    [jewelleryId]
+    "SELECT * FROM jewellery WHERE id=?",
+    [id]
   );
 
-  if (rows.length === 0) {
-    throw new Error("Jewellery not found or unavailable");
+  if (!rows.length) {
+    return {
+      price_per_gram: 0,
+      total_price: 0,
+    };
   }
 
-  const { price_per_gram, weight_grams, making_charge } = rows[0];
+  const jewellery = rows[0];
 
-  const metalPrice = Number(price_per_gram) * Number(weight_grams);
-  const finalPrice = metalPrice + Number(making_charge || 0);
+  const [priceRow] = await pool.query(
+    `SELECT price_per_gram, market_price, margin 
+     FROM metal_prices 
+     WHERE metal_type=?`,
+    [jewellery.category]
+  );
+
+  if (!priceRow.length) {
+    return {
+      price_per_gram: 0,
+      weight_grams: jewellery.weight_grams,
+      making_charge: jewellery.making_charge,
+      total_price:
+        Number(jewellery.making_charge || 0),
+    };
+  }
+
+  const base =
+    Number(priceRow[0].market_price) > 0
+      ? Number(priceRow[0].market_price)
+      : Number(priceRow[0].price_per_gram);
+
+  const margin = Number(priceRow[0].margin || 0);
+
+  const finalPerGram =
+    base + (base * margin) / 100;
+
+  const total =
+    finalPerGram *
+      Number(jewellery.weight_grams) +
+    Number(jewellery.making_charge || 0);
 
   return {
-    price_per_gram,
-    weight_grams,
-    making_charge,
-    metalPrice,
-    finalPrice,
+    price_per_gram: Number(
+      finalPerGram.toFixed(2)
+    ),
+    weight_grams: jewellery.weight_grams,
+    making_charge: jewellery.making_charge,
+    total_price: Number(total.toFixed(2)),
   };
+};
+
+const getFinalMetalPrices = async () => {
+  const [rows] = await pool.query(
+    "SELECT * FROM metal_prices"
+  );
+  return rows;
 };
 
 module.exports = {
   addJewellery,
   getAllJewellery,
   updateJewelleryStatus,
+  updateJewellery,
+  deleteJewellery,
   getAvailableJewellery,
   calculateJewelleryPrice,
+  getFinalMetalPrices,
 };

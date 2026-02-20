@@ -4,9 +4,11 @@ import AdminLayout from "../layouts/AdminLayout";
 import Dashboard from "../pages/admin/Dashboard";
 import Coins from "../pages/admin/Coins";
 import Revenue from "../pages/admin/Revenue";
+import CoinOrders from "../pages/admin/CoinOrders";
+import Pricing from "../pages/admin/Pricing";
 import NotFound from "../pages/NotFound";
 import ProtectedRoute from "../guards/ProtectedRoute";
-import CoinOrders from "../pages/admin/CoinOrders";
+import Jewellery from "../pages/admin/Jewellery";
 
 
 const AppRoutes = () => {
@@ -19,7 +21,7 @@ const AppRoutes = () => {
       {/* Auth */}
       <Route path="/login" element={<Login />} />
 
-      {/* Admin Routes */}
+      {/* ================= ADMIN ROUTES ================= */}
       <Route
         path="/admin"
         element={
@@ -30,8 +32,10 @@ const AppRoutes = () => {
       >
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="coins" element={<Coins />} />
-        <Route path="revenue" element={<Revenue />} />
         <Route path="orders" element={<CoinOrders />} />
+        <Route path="revenue" element={<Revenue />} />
+        <Route path="pricing" element={<Pricing />} />  {/* ✅ FIXED */}
+        <Route path="jewellery" element={<Jewellery />} />
 
       </Route>
 

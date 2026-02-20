@@ -1,10 +1,10 @@
 const pool = require("../config/db");
 const { v4: uuidv4 } = require("uuid");
 
-/**
- * USER: Create coin order
- */
-const createOrder = async (userId, coinId, quantity) => {
+/* =================================
+   USER: Create Order
+================================= */
+async function createOrder(userId, coinId, quantity) {
   const qty = Number(quantity || 1);
 
   const [coins] = await pool.query(
@@ -12,40 +12,39 @@ const createOrder = async (userId, coinId, quantity) => {
     [coinId]
   );
 
-  if (coins.length === 0) {
-    throw new Error("Coin not available");
-  }
+  if (!coins.length) throw new Error("Coin not available");
 
   const coin = coins[0];
-  const pricePerCoin = Number(coin.final_price);
-  const totalAmount = pricePerCoin * qty;
+
+  if (coin.stock < qty) {
+    throw new Error("Insufficient stock");
+  }
+
+  const totalAmount = Number(coin.final_price) * qty;
 
   const [result] = await pool.query(
     `INSERT INTO coin_orders
-     (user_id, coin_id, quantity, price_per_coin, total_amount)
-     VALUES (?, ?, ?, ?, ?)`,
-    [userId, coinId, qty, pricePerCoin, totalAmount]
+     (user_id, coin_id, quantity, price_per_coin, total_amount, order_status)
+     VALUES (?, ?, ?, ?, ?, 'PENDING')`,
+    [userId, coinId, qty, coin.final_price, totalAmount]
   );
 
   return {
     order_id: result.insertId,
-    price_per_coin: pricePerCoin,
     total_amount: totalAmount,
   };
-};
+}
 
-/**
- * USER: Pay for order
- */
-const payOrder = async (userId, orderId, paymentMethod) => {
+/* =================================
+   USER: Pay Order
+================================= */
+async function payOrder(userId, orderId, paymentMethod) {
   const [orders] = await pool.query(
     "SELECT * FROM coin_orders WHERE id = ? AND user_id = ?",
     [orderId, userId]
   );
 
-  if (orders.length === 0) {
-    throw new Error("Order not found");
-  }
+  if (!orders.length) throw new Error("Order not found");
 
   const order = orders[0];
 
@@ -67,62 +66,165 @@ const payOrder = async (userId, orderId, paymentMethod) => {
     [orderId]
   );
 
+  await pool.query(
+    "UPDATE coins SET stock = stock - ? WHERE id = ?",
+    [order.quantity, order.coin_id]
+  );
+
   return {
     transaction_id: transactionId,
-    total_amount: order.total_amount,
     status: "PAID",
   };
-};
+}
 
-/**
- * USER: View my orders
- */
-const getUserOrders = async (userId) => {
+/* =================================
+   USER: Get My Orders
+================================= */
+async function getUserOrders(userId) {
   const [rows] = await pool.query(
     `SELECT co.*, c.name AS coin_name
      FROM coin_orders co
      JOIN coins c ON c.id = co.coin_id
-     WHERE co.user_id = ?`,
+     WHERE co.user_id = ?
+     ORDER BY co.created_at DESC`,
     [userId]
   );
 
   return rows;
-};
+}
 
-/**
- * ADMIN: View all orders
- */
-const getAllOrders = async () => {
-  const [rows] = await pool.query(
-    `SELECT co.*, u.name AS user_name, c.name AS coin_name
-     FROM coin_orders co
-     JOIN users u ON u.id = co.user_id
-     JOIN coins c ON c.id = co.coin_id`
-  );
+/* =================================
+   ADMIN: Get All Orders
+================================= */
+async function getAllOrders() {
+  const [rows] = await pool.query(`
+    SELECT co.*, 
+           u.name AS user_name,
+           c.name AS coin_name
+    FROM coin_orders co
+    JOIN users u ON u.id = co.user_id
+    JOIN coins c ON c.id = co.coin_id
+    ORDER BY co.created_at DESC
+  `);
 
   return rows;
-};
+}
 
-/**
- * ADMIN: Revenue summary
- */
-const getRevenueSummary = async () => {
-  const [[row]] = await pool.query(`
+/* =================================
+   ADMIN: Revenue Summary
+================================= */
+async function getRevenueSummary(startDate, endDate) {
+  let query = `
     SELECT
       COUNT(*) AS total_orders,
-      SUM(order_status = 'PAID') AS paid_orders,
+      SUM(CASE WHEN order_status = 'PAID' THEN 1 ELSE 0 END) AS paid_orders,
       SUM(CASE WHEN order_status = 'PAID' THEN total_amount ELSE 0 END) AS total_revenue,
       SUM(CASE WHEN order_status = 'PAID' THEN quantity ELSE 0 END) AS coins_sold
     FROM coin_orders
-  `);
+    WHERE 1=1
+  `;
+
+  const params = [];
+
+  if (startDate && endDate) {
+    query += " AND DATE(created_at) BETWEEN ? AND ?";
+    params.push(startDate, endDate);
+  }
+
+  const [[summary]] = await pool.query(query, params);
 
   return {
-    total_orders: Number(row.total_orders || 0),
-    paid_orders: Number(row.paid_orders || 0),
-    total_revenue: Number(row.total_revenue || 0),
-    coins_sold: Number(row.coins_sold || 0),
+    total_orders: Number(summary.total_orders || 0),
+    paid_orders: Number(summary.paid_orders || 0),
+    total_revenue: Number(summary.total_revenue || 0),
+    coins_sold: Number(summary.coins_sold || 0),
   };
-};
+}
+
+/* =================================
+   ADMIN: Daily Revenue Trend
+================================= */
+async function getDailyRevenueTrend(startDate, endDate) {
+  let query = `
+    SELECT DATE(created_at) AS date,
+           SUM(total_amount) AS revenue
+    FROM coin_orders
+    WHERE order_status = 'PAID'
+  `;
+
+  const params = [];
+
+  if (startDate && endDate) {
+    query += " AND DATE(created_at) BETWEEN ? AND ?";
+    params.push(startDate, endDate);
+  }
+
+  query += " GROUP BY DATE(created_at) ORDER BY DATE(created_at)";
+
+  const [rows] = await pool.query(query, params);
+
+  return rows.map(r => ({
+    date: r.date,
+    revenue: Number(r.revenue || 0),
+  }));
+}
+
+/* =================================
+   ADMIN: Revenue By Metal
+================================= */
+async function getRevenueByMetal(startDate, endDate) {
+  let query = `
+    SELECT c.metal_type,
+           SUM(co.total_amount) AS revenue
+    FROM coin_orders co
+    JOIN coins c ON c.id = co.coin_id
+    WHERE co.order_status = 'PAID'
+  `;
+
+  const params = [];
+
+  if (startDate && endDate) {
+    query += " AND DATE(co.created_at) BETWEEN ? AND ?";
+    params.push(startDate, endDate);
+  }
+
+  query += " GROUP BY c.metal_type";
+
+  const [rows] = await pool.query(query, params);
+
+  return rows.map(r => ({
+    metal_type: r.metal_type,
+    revenue: Number(r.revenue || 0),
+  }));
+}
+
+/* =================================
+   ADMIN: Monthly Revenue
+================================= */
+async function getMonthlyRevenue(startDate, endDate) {
+  let query = `
+    SELECT DATE_FORMAT(created_at, '%Y-%m') AS month_key,
+           SUM(total_amount) AS revenue
+    FROM coin_orders
+    WHERE order_status = 'PAID'
+  `;
+
+  const params = [];
+
+  if (startDate && endDate) {
+    query += " AND DATE(created_at) BETWEEN ? AND ?";
+    params.push(startDate, endDate);
+  }
+
+  query += " GROUP BY month_key ORDER BY month_key";
+
+  const [rows] = await pool.query(query, params);
+
+  return rows.map(r => ({
+    month: r.month_key,
+    revenue: Number(r.revenue || 0),
+  }));
+}
 
 module.exports = {
   createOrder,
@@ -130,4 +232,7 @@ module.exports = {
   getUserOrders,
   getAllOrders,
   getRevenueSummary,
+  getDailyRevenueTrend,
+  getRevenueByMetal,
+  getMonthlyRevenue,
 };

@@ -5,7 +5,8 @@ const adminController = require("../controllers/admin.controller");
 const auth = require("../middleware/auth.middleware");
 const role = require("../middleware/role.middleware");
 
-/* SCHEMES */
+/* ================= SCHEMES ================= */
+
 router.post(
   "/schemes",
   auth,
@@ -13,7 +14,8 @@ router.post(
   adminController.createScheme
 );
 
-/* JEWELLERY */
+/* ================= JEWELLERY ================= */
+
 router.post(
   "/jewellery",
   auth,
@@ -21,7 +23,32 @@ router.post(
   adminController.addJewellery
 );
 
-/* METAL PRICES */
+/* ================= METAL PRICES ================= */
+
+/* GET ALL METAL PRICES (Admin View) */
+router.get(
+  "/prices",
+  auth,
+  role("ADMIN"),
+  adminController.getMetalPrices
+);
+
+/* UPDATE METAL PRICE */
+router.put(
+  "/prices",
+  auth,
+  role("ADMIN"),
+  adminController.updateMetalPrice
+);
+
+
+router.get(
+  "/prices",
+  auth,
+  role("ADMIN"),
+  adminController.getMetalPrices
+);
+
 router.put(
   "/prices",
   auth,

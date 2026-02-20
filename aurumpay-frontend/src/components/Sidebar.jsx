@@ -1,28 +1,59 @@
-import { NavLink } from "react-router-dom";
-
-const linkStyle = ({ isActive }) => ({
-  display: "block",
-  padding: "12px 16px",
-  color: isActive ? "#1e90ff" : "#333",
-  textDecoration: "none",
-  fontWeight: isActive ? "600" : "400",
-});
+import { Link, useLocation } from "react-router-dom";
 
 export default function Sidebar() {
+  const location = useLocation();
+
+  const menuItemStyle = (path) => ({
+    display: "block",
+    padding: "12px 20px",
+    textDecoration: "none",
+    color: location.pathname === path ? "#fff" : "#333",
+    background:
+      location.pathname === path
+        ? "linear-gradient(135deg,#4f46e5,#9333ea)"
+        : "transparent",
+    borderRadius: "10px",
+    marginBottom: "10px",
+    fontWeight: "500",
+    transition: "0.3s ease",
+  });
+
   return (
-    <aside
+    <div
       style={{
         width: "220px",
         background: "#f8f9fa",
-        borderRight: "1px solid #ddd",
+        padding: "20px",
+        borderRight: "1px solid #eee",
+        minHeight: "100vh",
       }}
     >
-      <h3 style={{ padding: "16px" }}>AurumPay Admin</h3>
+      <h3 style={{ marginBottom: "30px" }}>AurumPay Admin</h3>
 
-      <NavLink to="/admin/dashboard" style={linkStyle}>Dashboard</NavLink>
-      <NavLink to="/admin/coins" style={linkStyle}>Coins</NavLink>
-      <NavLink to="/admin/orders" style={linkStyle}>Orders</NavLink>
-      <NavLink to="/admin/revenue" style={linkStyle}>Revenue</NavLink>
-    </aside>
+      <Link style={menuItemStyle("/admin/dashboard")} to="/admin/dashboard">
+        Dashboard
+      </Link>
+
+      <Link style={menuItemStyle("/admin/coins")} to="/admin/coins">
+        Coins
+      </Link>
+
+      <Link style={menuItemStyle("/admin/orders")} to="/admin/orders">
+        Orders
+      </Link>
+
+      <Link style={menuItemStyle("/admin/revenue")} to="/admin/revenue">
+        Revenue
+      </Link>
+
+      <Link style={menuItemStyle("/admin/pricing")} to="/admin/pricing">
+        Pricing
+      </Link>
+
+      {/* ✅ FIXED JEWELLERY MENU */}
+      <Link style={menuItemStyle("/admin/jewellery")} to="/admin/jewellery">
+        Jewellery
+      </Link>
+    </div>
   );
 }

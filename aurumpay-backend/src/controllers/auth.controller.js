@@ -11,8 +11,12 @@ exports.signup = async (req, res, next) => {
 
 exports.login = async (req, res, next) => {
   try {
-    const token = await service.login(req.body);
-    res.json({ token });
+    // 🔥 Get full result from service (token + user)
+    const result = await service.login(req.body);
+
+    // 🔥 Send full object correctly
+    res.json(result);
+
   } catch (e) {
     next(e);
   }

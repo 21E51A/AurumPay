@@ -29,46 +29,19 @@ const Coins = () => {
     fetchCoins();
   }, []);
 
-  const handleChange = (e) => {
+  const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
-  };
 
-  /**
-   * ✅ ADD COIN WITH VALIDATION
-   */
   const handleAddCoin = async (e) => {
     e.preventDefault();
 
-    const basePrice = Number(form.base_price);
-    const discountValue = Number(form.discount_value || 0);
-
-    // 🔒 VALIDATIONS (VERY IMPORTANT)
-    if (basePrice <= 0) {
-      alert("Base price must be greater than 0");
-      return;
-    }
-
-    if (discountValue < 0) {
-      alert("Discount cannot be negative");
-      return;
-    }
-
-    if (
-      form.discount_type === "PERCENT" &&
-      discountValue > 100
-    ) {
-      alert("Percent discount cannot exceed 100%");
-      return;
-    }
-
     await addCoinApi({
       ...form,
-      base_price: basePrice,
+      base_price: Number(form.base_price),
       weight_grams: Number(form.weight_grams),
-      discount_value: discountValue,
+      discount_value: Number(form.discount_value || 0),
     });
 
-    // Reset form
     setForm({
       name: "",
       metal_type: "GOLD",
@@ -81,9 +54,6 @@ const Coins = () => {
     fetchCoins();
   };
 
-  /**
-   * ✅ ENABLE / DISABLE COIN
-   */
   const toggleAvailability = async (coin) => {
     await updateCoinApi(coin.id, {
       base_price: coin.base_price,
@@ -95,110 +65,103 @@ const Coins = () => {
   };
 
   return (
-    <div>
-      <h2>Coins Management</h2>
+    <div style={styles.page}>
+      <h1 style={styles.heading}>Coins Management</h1>
 
-      {/* ADD COIN FORM */}
-      <form onSubmit={handleAddCoin} style={{ marginBottom: 30 }}>
-        <input
-          name="name"
-          placeholder="Coin Name"
-          value={form.name}
-          onChange={handleChange}
-          required
-        />
-
-        <select
-          name="metal_type"
-          value={form.metal_type}
-          onChange={handleChange}
-        >
+      <form onSubmit={handleAddCoin} style={styles.form}>
+        <input name="name" placeholder="Coin Name" value={form.name} onChange={handleChange} required />
+        <select name="metal_type" value={form.metal_type} onChange={handleChange}>
           <option value="GOLD">Gold</option>
           <option value="SILVER">Silver</option>
         </select>
-
-        <input
-          name="weight_grams"
-          placeholder="Weight (grams)"
-          value={form.weight_grams}
-          onChange={handleChange}
-          required
-        />
-
-        <input
-          name="base_price"
-          placeholder="Base Price"
-          value={form.base_price}
-          onChange={handleChange}
-          required
-        />
-
-        <select
-          name="discount_type"
-          value={form.discount_type}
-          onChange={handleChange}
-        >
-          <option value="">No Discount</option>
-          <option value="FLAT">Flat</option>
-          <option value="PERCENT">Percent</option>
-        </select>
-
-        {/* 🔥 SHOW DISCOUNT INPUT ONLY IF SELECTED */}
-        {form.discount_type && (
-          <input
-            name="discount_value"
-            placeholder="Discount Value"
-            value={form.discount_value}
-            onChange={handleChange}
-          />
-        )}
-
-        <button type="submit">Add Coin</button>
+        <input name="weight_grams" placeholder="Weight (grams)" value={form.weight_grams} onChange={handleChange} required />
+        <input name="base_price" placeholder="Base Price" value={form.base_price} onChange={handleChange} required />
+        <button type="submit" style={styles.addButton}>Add Coin</button>
       </form>
 
-      {/* COINS TABLE */}
-      {loading ? (
-        <p>Loading...</p>
-      ) : (
-        <table border="1" cellPadding="10">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Metal</th>
-              <th>Weight</th>
-              <th>Base</th>
-              <th>Discount</th>
-              <th>Final</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {coins.map((coin) => (
-              <tr key={coin.id}>
-                <td>{coin.name}</td>
-                <td>{coin.metal_type}</td>
-                <td>{coin.weight_grams} g</td>
-                <td>₹ {coin.base_price}</td>
-                <td>
-                  {coin.discount_type
-                    ? `${coin.discount_type} (${coin.discount_value})`
-                    : "--"}
-                </td>
-                <td>₹ {coin.final_price}</td>
-                <td>{coin.is_available ? "Active" : "Disabled"}</td>
-                <td>
-                  <button onClick={() => toggleAvailability(coin)}>
-                    {coin.is_available ? "Disable" : "Enable"}
-                  </button>
-                </td>
+      <div style={styles.tableContainer}>
+        {loading ? (
+          <p>Loading...</p>
+        ) : (
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Metal</th>
+                <th>Weight</th>
+                <th>Base</th>
+                <th>Final</th>
+                <th>Status</th>
+                <th>Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            </thead>
+            <tbody>
+              {coins.map((coin) => (
+                <tr key={coin.id}>
+                  <td>{coin.name}</td>
+                  <td>{coin.metal_type}</td>
+                  <td>{coin.weight_grams} g</td>
+                  <td>₹ {coin.base_price}</td>
+                  <td>₹ {coin.final_price}</td>
+                  <td>{coin.is_available ? "Active" : "Disabled"}</td>
+                  <td>
+                    <button
+                      onClick={() => toggleAvailability(coin)}
+                      style={styles.actionButton}
+                    >
+                      {coin.is_available ? "Disable" : "Enable"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
+};
+
+const styles = {
+  page: {
+    padding: "40px",
+    background: "#f8fafc",
+    minHeight: "100vh",
+  },
+  heading: {
+    marginBottom: "25px",
+  },
+  form: {
+    display: "flex",
+    gap: "10px",
+    marginBottom: "25px",
+  },
+  addButton: {
+    background: "linear-gradient(135deg, #4f46e5, #7c3aed)",
+    color: "#fff",
+    border: "none",
+    padding: "8px 18px",
+    borderRadius: "8px",
+    cursor: "pointer",
+  },
+  tableContainer: {
+    background: "#fff",
+    padding: "20px",
+    borderRadius: "16px",
+    boxShadow: "0 8px 25px rgba(0,0,0,0.05)",
+  },
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+  },
+  actionButton: {
+    background: "#4f46e5",
+    color: "#fff",
+    border: "none",
+    padding: "6px 12px",
+    borderRadius: "6px",
+    cursor: "pointer",
+  },
 };
 
 export default Coins;

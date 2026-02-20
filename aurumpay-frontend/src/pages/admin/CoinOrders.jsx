@@ -3,17 +3,10 @@ import axiosInstance from "../../api/axiosInstance";
 
 const CoinOrders = () => {
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   const fetchOrders = async () => {
-    try {
-      const res = await axiosInstance.get("/coin-orders/all");
-      setOrders(res.data.orders);
-    } catch (err) {
-      console.error("Failed to fetch orders");
-    } finally {
-      setLoading(false);
-    }
+    const res = await axiosInstance.get("/coin-orders/all");
+    setOrders(res.data.orders);
   };
 
   useEffect(() => {
@@ -21,22 +14,19 @@ const CoinOrders = () => {
   }, []);
 
   return (
-    <div>
-      <h2>Orders Management</h2>
+    <div style={styles.page}>
+      <h1 style={styles.heading}>Orders Management</h1>
 
-      {loading ? (
-        <p>Loading...</p>
-      ) : (
-        <table border="1" cellPadding="10">
+      <div style={styles.tableContainer}>
+        <table style={styles.table}>
           <thead>
             <tr>
               <th>ID</th>
               <th>User</th>
               <th>Coin</th>
-              <th>Quantity</th>
+              <th>Qty</th>
               <th>Total</th>
               <th>Status</th>
-              <th>Date</th>
             </tr>
           </thead>
           <tbody>
@@ -48,16 +38,34 @@ const CoinOrders = () => {
                 <td>{order.quantity}</td>
                 <td>₹ {order.total_amount}</td>
                 <td>{order.order_status}</td>
-                <td>
-                  {new Date(order.created_at).toLocaleDateString()}
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
-      )}
+      </div>
     </div>
   );
+};
+
+const styles = {
+  page: {
+    padding: "40px",
+    background: "#f8fafc",
+    minHeight: "100vh",
+  },
+  heading: {
+    marginBottom: "25px",
+  },
+  tableContainer: {
+    background: "#fff",
+    padding: "20px",
+    borderRadius: "16px",
+    boxShadow: "0 8px 25px rgba(0,0,0,0.05)",
+  },
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+  },
 };
 
 export default CoinOrders;
